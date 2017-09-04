@@ -38,6 +38,23 @@ extern bool ts_enable=true;
 extern int ts_val=15;
 extern int ts_step=2;
 extern bool ts_only_profit=true;
+// Optimization
+extern string Optimization="---------------------------------------------";
+extern int x1 = 24;
+extern int x2 = 10;
+extern int x3 = 6;
+extern int x4 = 0;
+extern int x5 = 3;
+extern int x6 = 3;
+extern int x7 = 3;
+extern int x8 = 1;
+extern int x9 = 1;
+extern int x10 = 25;
+extern int x11 = 35;
+extern int x12 = 35;
+extern int x13 = 45;
+extern double x14 = 0.001754;
+extern double x15 = 0.00150;
 // ------------------------------------------------------------------+
 // GLOBAL VARIABLES                                                  |
 // ------------------------------------------------------------------+
@@ -94,15 +111,15 @@ int CalculateSignal()
 
    int aux=0;
    int strength=check_strength ? GetStrengthTrend() : 0;
-   double ihigh=iHigh(Symbol(),0,shift);
-   double ilow=iLow(Symbol(),0,shift);
+   double ihigh=iHigh(Symbol(),0,x8);
+   double ilow=iLow(Symbol(),0,x9);
    double diff=ihigh-ilow;
 
    int aux1=0;
-   if(diff>0) //0.00150 - 0.00250
+   if(diff>x14) //0.00150 - 0.00250
      {
-      double zz_cur=iCustom(Symbol(),0,"ZigZag",24,10,6,0,3);
-      if(zz_cur>0.00175)
+      double zz_cur=iCustom(Symbol(),0,"ZigZag",x1,x2,x3,x4,x5);
+      if(zz_cur>0)
         {
          if(zz_cur < zz_prev && zz_prev > 0 && strength > 0) aux=1;
          if(zz_cur > zz_prev && zz_prev > 0 && strength < 0) aux1=-1;
@@ -111,15 +128,15 @@ int CalculateSignal()
      }
 
    int aux2=0;
-   if(diff>0.00150) //0.00150 - 0.00250
+   if(diff>x15) //0.00150 - 0.00250
      {
       O_0(gda_328,gda_332,gia_336,gd_340);
 
-      double iMAL=iMA(NULL,0,3,0,MODE_LWMA,PRICE_LOW,shift);
+      double iMAL=iMA(NULL,0,x6,0,MODE_LWMA,PRICE_LOW,shift);
       double bb=MathAbs(ihigh-MarketInfo(Symbol(),MODE_BID));
       if(MarketInfo(Symbol(),MODE_BID)>iMAL && bb>0 && Oo<0.0) aux2=1;
 
-      double iMAH=iMA(NULL,0,3,0,MODE_LWMA,PRICE_HIGH,shift);
+      double iMAH=iMA(NULL,0,x7,0,MODE_LWMA,PRICE_HIGH,shift);
       double sb=MathAbs(MarketInfo(Symbol(),MODE_BID)-ilow);
       if(MarketInfo(Symbol(),MODE_BID)<iMAH && sb>0 && Oo>0.0) aux2=-1;
      }
@@ -230,10 +247,10 @@ int GetStrengthTrend()
    double adxDiMinus=iADX(Symbol(),adx_period,14,PRICE_MEDIAN,MODE_MINUSDI,0);
 
    int strngth=0;
-   if(adxMain>25 && adxDiPlus>=25 && adxDiMinus<=15) strngth=1;
-   else if(adxMain>35 && adxDiMinus>=25 && adxDiPlus<=15) strngth=-1;
-   if(adxMain>35 && adxDiPlus>=25 && adxDiMinus<=15) strngth=2;
-   else if(adxMain>45 && adxDiMinus>=25 && adxDiPlus<=15) strngth=-2;
+   if(adxMain>x10 && adxDiPlus>=25 && adxDiMinus<=15) strngth=1;
+   else if(adxMain>x11 && adxDiMinus>=25 && adxDiPlus<=15) strngth=-1;
+   if(adxMain>x12 && adxDiPlus>=25 && adxDiMinus<=15) strngth=2;
+   else if(adxMain>x13 && adxDiMinus>=25 && adxDiPlus<=15) strngth=-2;
 
    return(strngth);
   }
@@ -360,7 +377,7 @@ void Trade()
          direction=1;
          new_open_price=MarketInfo(Symbol(),MODE_ASK);
          limit_price=NormalizeDouble(MarketInfo(Symbol(),MODE_BID)+sl*4,digits);
-         int t1=OrderSend(Symbol(),OP_BUY,CalculatePips(),new_open_price,slippage,GetStopLoss(OP_BUY),GetTakeProfit(OP_BUY),key,magic,0,clrGreen);
+         int t1=OrderSend(Symbol(),OP_BUYSTOP,CalculatePips(),new_open_price,slippage,GetStopLoss(OP_BUY),GetTakeProfit(OP_BUY),key,magic,0,clrGreen);
          if(t1>0 && signal<=1)
            {
             int tl1=OrderSend(Symbol(),OP_SELLSTOP,CalculatePips(),limit_price,slippage,new_open_price,NormalizeDouble(limit_price-(new_open_price-limit_price),digits),t1,magic+magic_lock,0,clrBlue);
@@ -373,7 +390,7 @@ void Trade()
          direction=-1;
          new_open_price=MarketInfo(Symbol(),MODE_BID);
          limit_price=NormalizeDouble(MarketInfo(Symbol(),MODE_ASK)-sl*4,digits);
-         int t2=OrderSend(Symbol(),OP_SELL,CalculatePips(),new_open_price,slippage,GetStopLoss(OP_SELL),GetTakeProfit(OP_SELL),key,magic,0,clrGreen);
+         int t2=OrderSend(Symbol(),OP_SELLSTOP,CalculatePips(),new_open_price,slippage,GetStopLoss(OP_SELL),GetTakeProfit(OP_SELL),key,magic,0,clrGreen);
          if(t2>0 && signal>=-1)
            {
             int tl2=OrderSend(Symbol(),OP_BUYSTOP,CalculatePips(),limit_price,slippage,new_open_price,NormalizeDouble(limit_price+(limit_price-new_open_price),digits),t2,magic+magic_lock,0,clrBlue);
