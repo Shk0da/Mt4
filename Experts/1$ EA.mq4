@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                                            1$ EA |
+//|                                                      Ichimoku EA |
 //|                                           Copyright 2017, Shk0da |
 //|                                    https://github.com/Shk0da/mt4 |
 //+------------------------------------------------------------------+
@@ -17,7 +17,7 @@ int magic_lock=777;
 // Configuration
 extern string CommonSettings="---------------------------------------------";
 extern int user_slippage=2;
-extern int user_tp=50;
+extern int user_tp=20;
 extern int user_sl=100;
 extern bool use_basic_tp=true;
 extern bool use_basic_sl=false;
@@ -529,7 +529,7 @@ void Trade()
    int total=0;
    int TradeList[][2];
    int ctTrade= 0;
-   if((orders>=0 &&((pr>=satisfactorily_tp && (safety || !use_basic_tp))||((trend_changed||(orders>=max_orders && max_orders>1)) && pr>=0))))
+   if((orders>=0 &&((pr>=satisfactorily_tp && (safety || !use_basic_tp))||((trend_changed||(orders>=max_orders && max_orders>1)) && pr>=0))) || (orders == 1 && (TimeCurrent() - OrderOpenTime() > DAY) && pr>=-1))
      {
       total=OrdersTotal();
       ctTrade=0;
