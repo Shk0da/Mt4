@@ -17,9 +17,9 @@ int magic_lock=777;
 // Configuration
 extern string CommonSettings="---------------------------------------------";
 extern int user_slippage=2;
-extern int user_tp=200;
+extern int user_tp=50;
 extern int user_sl=100;
-extern bool use_basic_tp=false;
+extern bool use_basic_tp=true;
 extern bool use_basic_sl=false;
 extern bool use_dynamic_tp=false;
 extern bool use_dynamic_sl=false;
@@ -31,10 +31,10 @@ extern int martin_aver_k=2;
 extern double balance_limit=50;
 extern int max_orders=1;
 extern int surfing=0;
-extern bool close_loss_orders=true;
+extern bool close_loss_orders=false;
 extern bool global_basket=false;
-extern bool safety=true;
-extern bool use_reverse_orders=true;
+extern bool safety=false;
+extern bool use_reverse_orders=false;
 // Trailing stop
 extern string TrailingStopSettings="---------------------------------------------";
 extern bool ts_enable=false;
