@@ -458,20 +458,20 @@ double CalculaSignal()
    if(white2<black2) result++;
    if(white2>black2) result--;
 
-   double white=iMA(Symbol(),PERIOD_D1,7,0,MODE_SMMA,PRICE_CLOSE,0);
-   double black=iMA(Symbol(),PERIOD_D1,56,0,MODE_SMMA,PRICE_CLOSE,0);
+   double white=iMA(Symbol(),PERIOD_H1,7,0,MODE_SMMA,PRICE_CLOSE,0);
+   double black=iMA(Symbol(),PERIOD_H1,56,0,MODE_SMMA,PRICE_CLOSE,0);
 
-   if(white<black && white<ask && result>=0)
+    if(white>black && ask>white && result>=0)
      {
       return 2;
      }
 
-   if(white>black && white>bid && result<=0)
+   if(white<black && bid<white && result<=0)
      {
       return -2;
      }
 
-   return(result > 3 ? 1 : result < -3 ? -1 : 0);
+   return((result > 3 && white>black) ? 1 : (result < -3 && white<black) ? -1 : 0);
   }
 //+------------------------------------------------------------------+
 //|                                                                  |
