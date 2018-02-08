@@ -17,8 +17,8 @@ int magic_lock=777;
 // Configuration
 extern string CommonSettings="---------------------------------------------";
 extern int user_slippage=2;
-extern int user_tp=20;
-extern int user_sl=100;
+extern int user_tp=50;
+extern int user_sl=40;
 extern bool use_basic_tp=true;
 extern bool use_basic_sl=false;
 extern bool use_dynamic_tp=false;
@@ -29,17 +29,14 @@ extern double min_lots=0.01;
 extern int risk=50;
 extern int martin_aver_k=2;
 extern double balance_limit=50;
+extern double max_spread=50;
 extern int max_orders=1;
-extern int surfing=0;
-extern bool close_loss_orders=false;
-extern bool global_basket=false;
-extern bool safety=false;
-extern bool use_reverse_orders=false;
+extern double safety=0.002;
 // Trailing stop
 extern string TrailingStopSettings="---------------------------------------------";
-extern bool ts_enable=false;
-extern int ts_val=19;
-extern int ts_step=4;
+extern bool ts_enable=true;
+extern int ts_val=30;
+extern int ts_step=10;
 extern bool ts_only_profit=true;
 // Optimization
 extern string Optimization="---------------------------------------------";
@@ -138,19 +135,9 @@ double GetPfofit()
      {
       if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES))
         {
-         if(global_basket)
+         if(OrderSymbol()==Symbol() && (OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock) && (OrderType()==OP_BUY || OrderType()==OP_SELL))
            {
-            if((OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock) && (OrderType()==OP_BUY || OrderType()==OP_SELL))
-              {
-               profit+=OrderProfit()+OrderSwap()-OrderCommission();
-              }
-           }
-         else
-           {
-            if(OrderSymbol()==Symbol() && (OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock) && (OrderType()==OP_BUY || OrderType()==OP_SELL))
-              {
-               profit+=OrderProfit()+OrderSwap()-OrderCommission();
-              }
+            profit+=OrderProfit()+OrderSwap()-OrderCommission();
            }
         }
      }
@@ -262,11 +249,6 @@ void ActualizarOrdenes()
      {
       if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES))
         {
-         if(((!global_basket && OrderSymbol()==Symbol()) || global_basket) && (OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock) && (OrderType()==OP_BUY || OrderType()==OP_SELL))
-           {
-            ordenes++;
-           }
-
          if(OrderSymbol()==Symbol() && (OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock) && (OrderType()==OP_BUY || OrderType()==OP_SELL))
            {
             order_ticket=OrderTicket();
@@ -280,6 +262,8 @@ void ActualizarOrdenes()
 
             if(OrderType()==OP_BUY) direction=1;
             if(OrderType()==OP_SELL) direction=2;
+
+            ordenes++;
            }
         }
      }
@@ -326,12 +310,6 @@ double CalcularVolumen()
    aux=aux/100000;
    n=MathFloor(aux/min_lots);
    aux=n*min_lots;
-
-   if(surfing>0)
-     {
-      aux=last_order_lots+min_lots;
-      if(aux>surfing*MarketInfo(Symbol(),MODE_LOTSTEP)) aux=min_lots;
-     }
 
    double max=GetMaxLot(risk);
    if(aux>max) aux=max;
@@ -431,6 +409,8 @@ double CalculaSignal()
       return(0);
      }
 
+   if(GetStrengthTrend() == 0 || MarketInfo(Symbol(), MODE_SPREAD) > max_spread * MarketInfo(Symbol(), MODE_DIGITS)) return 0;
+
    double bid = MarketInfo(Symbol(),MODE_BID);
    double ask = MarketInfo(Symbol(),MODE_ASK);
 
@@ -452,26 +432,24 @@ double CalculaSignal()
    if(ask>ibandsupper) result--;
    if(ask>envelopesupper) result--;
 
-   double white2=iMA(Symbol(),0,7,0,MODE_SMMA,PRICE_CLOSE,0);
-   double black2=iMA(Symbol(),0,56,0,MODE_SMMA,PRICE_CLOSE,0);
-
-   if(white2<black2) result++;
-   if(white2>black2) result--;
-
    double white=iMA(Symbol(),PERIOD_H1,7,0,MODE_SMMA,PRICE_CLOSE,0);
    double black=iMA(Symbol(),PERIOD_H1,56,0,MODE_SMMA,PRICE_CLOSE,0);
 
-    if(white>black && ask>white && result>=0)
+   int signal=0;
+   if(result >= 2 && white>black && bid>white) signal=2;
+   if(result <= -2 && black>white && ask<white) signal=-2;
+
+   if((black>white && bid<black && bid>white) || (white>black && ask>black && ask<white))
      {
-      return 2;
+      double whiteCurrent=iMA(Symbol(),0,7,0,MODE_SMMA,PRICE_CLOSE,0);
+      double blackCurrent=iMA(Symbol(),0,56,0,MODE_SMMA,PRICE_CLOSE,0);
+
+      if(result >= 2 && whiteCurrent>blackCurrent && bid>whiteCurrent) signal=1;
+      if(result <= -2 && blackCurrent>whiteCurrent && ask<whiteCurrent) signal=-1;
+
      }
 
-   if(white<black && bid<white && result<=0)
-     {
-      return -2;
-     }
-
-   return((result > 3 && white>black) ? 1 : (result < -3 && white<black) ? -1 : 0);
+   return signal;
   }
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -523,13 +501,12 @@ void Trade()
    double tp_val=(use_dynamic_tp==1) ? atr/0.00001 : user_tp;
    double tp = tp_val*MarketInfo(Symbol(),MODE_POINT)*(MarketInfo(Symbol(),MODE_DIGITS) >= 4 ? 2 : 1);
    double sl = tp*-1;
-   bool trend_changed=((buy && direction==2) || (sell && direction==1));
-   double satisfactorily_tp=((MarketInfo(Symbol(),MODE_BID)+MarketInfo(Symbol(),MODE_ASK))/2-tp)*(CalcularVolumen()/min_lots)/2;
+   bool trend_changed=((buy && previous_sell) || (sell && previous_buy));
 
    int total=0;
    int TradeList[][2];
    int ctTrade= 0;
-   if((orders>=0 &&((pr>=satisfactorily_tp && (safety || !use_basic_tp))||((trend_changed||(orders>=max_orders && max_orders>1)) && pr>=0))) || (orders == 1 && (TimeCurrent() - OrderOpenTime() > DAY) && pr>=-1))
+   if((orders>=0 && pr >= (AccountBalance() * safety)) || trend_changed)
      {
       total=OrdersTotal();
       ctTrade=0;
@@ -539,23 +516,11 @@ void Trade()
         {
          if(OrderSelect(k,SELECT_BY_POS))
            {
-            if(global_basket)
+            if(OrderSymbol()==Symbol() && (OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock))
               {
-               if((OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock))
-                 {
-                  ArrayResize(TradeList,++ctTrade);
-                  TradeList[ctTrade - 1][0] = OrderOpenTime();
-                  TradeList[ctTrade - 1][1] = OrderTicket();
-                 }
-              }
-            else
-              {
-               if(OrderSymbol()==Symbol() && (OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock))
-                 {
-                  ArrayResize(TradeList,++ctTrade);
-                  TradeList[ctTrade - 1][0] = OrderOpenTime();
-                  TradeList[ctTrade - 1][1] = OrderTicket();
-                 }
+               ArrayResize(TradeList,++ctTrade);
+               TradeList[ctTrade - 1][0] = OrderOpenTime();
+               TradeList[ctTrade - 1][1] = OrderTicket();
               }
            }
         }
@@ -577,50 +542,6 @@ void Trade()
             break;
            }
          if((OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock)) orders--;
-        }
-     }
-
-   if(!use_basic_sl && close_loss_orders && trend_changed)
-     {
-      total=OrdersTotal();
-      ctTrade=0;
-      ArrayResize(TradeList,ctTrade);
-
-      for(k=total-1; k>=0; k--)
-        {
-         OrderSelect(k,SELECT_BY_POS);
-         if(OrderSymbol()!=Symbol()) continue;
-         if(OrderType()==OP_BUY)
-           {
-            double prb=(MarketInfo(Symbol(),MODE_ASK)-OrderOpenPrice());
-            if(prb<sl)
-              {
-               ArrayResize(TradeList,++ctTrade);
-               TradeList[ctTrade - 1][0] = OrderOpenTime();
-               TradeList[ctTrade - 1][1] = OrderTicket();
-              }
-           }
-         if(OrderType()==OP_SELL)
-           {
-            double prs=(OrderOpenPrice()-MarketInfo(Symbol(),MODE_BID));
-            if(prs<sl)
-              {
-               ArrayResize(TradeList,++ctTrade);
-               TradeList[ctTrade - 1][0] = OrderOpenTime();
-               TradeList[ctTrade - 1][1] = OrderTicket();
-              }
-           }
-        }
-
-      if(ArraySize(TradeList)>0) ArraySort(TradeList,WHOLE_ARRAY,0,MODE_ASCEND);
-      for(i=0; i<ctTrade; i++)
-        {
-         if(OrderSelect(TradeList[i][1],SELECT_BY_TICKET))
-           {
-            if(OrderType()==OP_BUY) OrderCloseReliable(OrderTicket(),OrderLots(),MarketInfo(Symbol(),MODE_BID),slippage,Red);
-            if(OrderType()==OP_SELL) OrderCloseReliable(OrderTicket(),OrderLots(),MarketInfo(Symbol(),MODE_ASK),slippage,Red);
-            if((OrderMagicNumber()==magic || OrderMagicNumber()==magic+magic_lock)) orders--;
-           }
         }
      }
 
@@ -702,22 +623,12 @@ void Trade()
             int t1=OrderSendReliable(Symbol(),OP_BUY,val,new_open_price,slippage,new_sl,GetTakeProfit(OP_BUY),comment,magic,0,Blue);
             direction=1;
             last_open_price=new_open_price;
-
-            if(use_reverse_orders && t1>0 && signal<=1)
-              {
-               int tl1=OrderSendReliable(Symbol(),OP_SELLSTOP,val,limit_price,slippage,new_open_price-sl,limit_price-(new_open_price-limit_price),t1,magic+magic_lock,0,Red);
-              }
            }
          if(sell)
            {
             int t2=OrderSendReliable(Symbol(),OP_SELL,val,new_open_price,slippage,new_sl,GetTakeProfit(OP_SELL),comment,magic,0,Red);
             direction=2;
             last_open_price=new_open_price;
-
-            if(use_reverse_orders && t2>0 && signal>=-1)
-              {
-               int tl2=OrderSendReliable(Symbol(),OP_BUYSTOP,val,limit_price,slippage,new_open_price+sl,limit_price+(limit_price-new_open_price),t2,magic+magic_lock,0,Blue);
-              }
            }
         }
      }
