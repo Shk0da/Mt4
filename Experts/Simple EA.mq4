@@ -37,14 +37,8 @@ void OnTick()
             double profit=OrderProfit()+OrderSwap()-OrderCommission();
             if(prevsignal>=0 && signal<0 || prevsignal<=0 && signal>0 || (!TSEnable && profit>=sfprofit))
               {
-               if(OrderType()==OP_BUY)
-                 {
-                  OrderClose(OrderTicket(),OrderLots(),Bid,3,Red);
-                 }
-               if(OrderType()==OP_SELL)
-                 {
-                  OrderClose(OrderTicket(),OrderLots(),Ask,3,Red);
-                 }
+               if(OrderType()==OP_BUY) OrderClose(OrderTicket(),OrderLots(),Bid,3,Red);
+               if(OrderType()==OP_SELL) OrderClose(OrderTicket(),OrderLots(),Ask,3,Red);
               }
             else
               {
@@ -275,6 +269,6 @@ double CalculaSignal()
    int sclpr=aux1+aux2+aux3+aux4+aux5;
    Comment("\nSimple EA: "+sclpr);
 
-   return (signal > 0 && sclpr >= Sense ? 1 : signal < 0 && sclpr <= -Sense ? 1 : 0);
+   return (signal > 0 && sclpr >= Sense ? 1 : signal < 0 && sclpr <= -Sense ? -1 : 0);
   }
 //+------------------------------------------------------------------+
