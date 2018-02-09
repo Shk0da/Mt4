@@ -1,5 +1,6 @@
 //+------------------------------------------------------------------+
 #define MAGICMA  20180208
+#define MAGICMA2  19274
 //--- Inputs
 input double BalanceRisk   =10;
 input double MinimumLots   =0.01;
@@ -26,10 +27,15 @@ void OnTick()
      {
       if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES))
         {
-         if(OrderSymbol()==Symbol() && OrderMagicNumber()==MAGICMA && (OrderType()==OP_BUY || OrderType()==OP_SELL))
+         if(OrderSymbol()==Symbol() && (OrderMagicNumber()==MAGICMA || OrderMagicNumber()==MAGICMA2) && (OrderType()==OP_BUY || OrderType()==OP_SELL))
            {
-            double profit = OrderProfit()+OrderSwap()-OrderCommission();
-            if(prevsignal>=0 && signal<0 || prevsignal<=0 && signal>0 || (!TSEnable && profit >= sfprofit))
+            if(prevsignal==0) 
+              {
+               if(OrderType()==OP_BUY) prevsignal=1;
+               if(OrderType()==OP_SELL) prevsignal=-1;
+              }
+            double profit=OrderProfit()+OrderSwap()-OrderCommission();
+            if(prevsignal>=0 && signal<0 || prevsignal<=0 && signal>0 || (!TSEnable && profit>=sfprofit))
               {
                if(OrderType()==OP_BUY)
                  {
@@ -43,7 +49,7 @@ void OnTick()
             else
               {
                ordenes++;
-               if (TSEnable) TrailingPositions();
+               if(TSEnable) TrailingPositions();
               }
            }
         }
@@ -128,7 +134,7 @@ double CalculaSignal()
   {
    if(AccountBalance()<=50)
      {
-      Comment("\nSimple EA Balance: " + AccountBalance() + "!");
+      Comment("\nSimple EA Balance: "+AccountBalance()+"!");
       return(0);
      }
 
@@ -267,7 +273,7 @@ double CalculaSignal()
    if((vadoShort12+vadoShort13+vadoShort7)<-1) aux5=-1;
 
    int sclpr=aux1+aux2+aux3+aux4+aux5;
-   Comment("\nSimple EA: " + sclpr);
+   Comment("\nSimple EA: "+sclpr);
 
    return (signal > 0 && sclpr >= Sense ? 1 : signal < 0 && sclpr <= -Sense ? 1 : 0);
   }
