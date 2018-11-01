@@ -10,15 +10,15 @@ input double TP            =0;
 input double SL            =0;
 
 input bool   TSEnable      =true;
-input int    TSVal         =5;
+input int    TSVal         =30;
 input int    TSStep        =5;
 
 extern string linearregressionRrealIndicator="linearregression-real.mq4";
-extern int lrlPeriod=4;
+extern int lrlPeriod=10;
 extern string rSquaredV1Indicator="r-squared_v1.mq4";
-extern int price=0;
-extern int length=14;
-extern int smooth=14;
+extern int price=1;
+extern int length=13;
+extern int smooth=17;
 
 enum Signal {UP,DOWN,CLOSE,NONE};
 Signal prevsignal=NONE;
@@ -143,26 +143,20 @@ Signal CalculaSignal()
    if(AccountBalance()<=BalanceLimit) return NONE;
    if(MarketInfo(Symbol(), MODE_SPREAD) > MaximumSpread * MarketInfo(Symbol(), MODE_DIGITS)) return NONE;
 
-// linearregression-real indicator
-   double linearPrev1=iCustom(Symbol(),0,"linearregression-real",lrlPeriod,0,3);
    double linearPrev2=iCustom(Symbol(),0,"linearregression-real",lrlPeriod,0,2);
-   double linearPrev3=iCustom(Symbol(),0,"linearregression-real",lrlPeriod,0,1);
+   double linearPrev1=iCustom(Symbol(),0,"linearregression-real",lrlPeriod,0,1);
    double linear=iCustom(Symbol(),0,"linearregression-real",lrlPeriod,0,0);
-   Print("linearregression-real: ",linear);
 
-// r-squared_v1 indicator
+   double squaredPrev1=iCustom(Symbol(),0,"r-squared_v1",price,length,smooth,0,1);
    double squared=iCustom(Symbol(),0,"r-squared_v1",price,length,smooth,0,0);
-   Print("r-squared_v1: ",squared);
 
-   Signal signal = NONE;
-   bool linearUP = linearPrev1 < linearPrev2 && linearPrev2 < linearPrev3;
-   if(squared<3 && linearUP) signal=UP;
+   Signal signal=NONE;
+   if(squared<5 && squared<squaredPrev1)
+     {
+      if(linearPrev2<linearPrev1 && linearPrev1<linear) signal=UP;
+      if(linearPrev2>linearPrev1 && linearPrev1>linear) signal=DOWN;
+     }
 
-   bool linearDOWN=linearPrev1>linearPrev2 && linearPrev2>linearPrev3;
-   if(squared<3 && linearDOWN) signal=DOWN;
-
-// TODO: if(squared>=40 && (linearDOWN || linearUP)) signal=CLOSE;
-
-   return signal;//rand()>15000 ? UP : DOWN;
+   return signal;
   }
 //+------------------------------------------------------------------+
