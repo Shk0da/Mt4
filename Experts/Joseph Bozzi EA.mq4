@@ -19,6 +19,11 @@ extern string rSquaredV1Indicator="r-squared_v1.mq4";
 extern int price=1;
 extern int length=13;
 extern int smooth=17;
+extern string iRegrIndicator="i-Regr.mq4";
+extern int degree=1;
+extern double kstd=1.0;
+extern int bars=14;
+extern int shift=0;
 
 enum Signal {UP,DOWN,CLOSE,NONE};
 Signal prevsignal=NONE;
@@ -150,11 +155,25 @@ Signal CalculaSignal()
    double squaredPrev1=iCustom(Symbol(),0,"r-squared_v1",price,length,smooth,0,1);
    double squared=iCustom(Symbol(),0,"r-squared_v1",price,length,smooth,0,0);
 
+   double iRegr1=iCustom(Symbol(),0,"i-Regr",degree,kstd,bars,shift,0,0);
+   double iRegr2=iCustom(Symbol(),0,"i-Regr",degree,kstd,bars,shift,1,0);
+   double iRegr3=iCustom(Symbol(),0,"i-Regr",degree,kstd,bars,shift,2,0);
+
    Signal signal=NONE;
    if(squared<5 && squared<squaredPrev1)
      {
-      if(linearPrev2<linearPrev1 && linearPrev1<linear) signal=UP;
-      if(linearPrev2>linearPrev1 && linearPrev1>linear) signal=DOWN;
+      if(linearPrev2<linearPrev1 && linearPrev1<linear && linear <= iRegr2) signal=UP;
+      if(linearPrev2>linearPrev1 && linearPrev1>linear && linear >= iRegr2) signal=DOWN;
+     }
+   if(signal==NONE)
+     {
+      if(prevsignal == UP && linear >= iRegr1 && linearPrev1>linear) signal=DOWN;
+      if(prevsignal == DOWN && linear <= iRegr3 && linearPrev1<linear) signal=UP;
+     }
+   if(signal==NONE && squared<50)
+     {
+      if(linearPrev2<linearPrev1 && linearPrev1>linear && linear >= iRegr1) signal=DOWN;
+      if(linearPrev2>linearPrev1 && linearPrev1<linear && linear <= iRegr3) signal=UP;
      }
 
    return signal;
